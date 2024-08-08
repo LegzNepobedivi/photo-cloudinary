@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Plus, X, Save } from 'lucide-react';
+import { CldImage  } from 'next-cloudinary';
+
+import Link from 'next/link';
 
 import Container from '@/components/Container';
 import { Button } from '@/components/ui/button';
@@ -10,17 +12,22 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
+import { CloudinaryResource } from '@/types/cloudinary';
+
+import { useResources } from '@/hooks/use-resources';
+
 interface MediaGalleryProps {
-  resources: Array<{ id: string }>
+  resources: Array<CloudinaryResource>
 }
 
-const MediaGallery = ({ resources }: MediaGalleryProps) => {
+const MediaGallery = ({ resources: initialResources }: MediaGalleryProps) => {
+
+  const {resources} = useResources({
+    initialResources
+  });
+
   const [selected, setSelected] = useState<Array<string>>([]);
   const [creation, setCreation] = useState();
-
-  /**
-   * handleOnClearSelection
-   */
 
   function handleOnClearSelection() {
     setSelected([]);
@@ -97,31 +104,31 @@ const MediaGallery = ({ resources }: MediaGalleryProps) => {
 
       <Container>
         <form>
-          {Array.isArray(resources) && (
+          {Array.isArray(initialResources) && (
             <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 mb-12">
-              {resources.map((resource) => {
-                const isChecked = selected.includes(resource.id);
+              {initialResources.map((resource) => {
+                const isChecked = selected.includes(resource.public_id);
 
                 function handleOnSelectResource(checked: boolean) {
                   setSelected((prev) => {
                     if ( checked ) {
-                      return Array.from(new Set([...(prev || []), resource.id]));
+                      return Array.from(new Set([...(prev || []), resource.public_id]));
                     } else {
-                      return prev.filter((id) => id !== resource.id);
+                      return prev.filter((id) => id !== resource.public_id);
                     }
                   });
                 }
 
                 return (
-                  <li key={resource.id} className="bg-white dark:bg-zinc-700">
+                  <li key={resource.public_id} className="bg-white dark:bg-zinc-700">
                     <div className="relative group">
-                      <label className={`absolute ${isChecked ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity top-3 left-3 p-1`} htmlFor={resource.id}>
+                      <label className={`absolute ${isChecked ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity top-3 left-3 p-1`} htmlFor={resource.public_id}>
                         <span className="sr-only">
-                          Select Image &quot;{ resource.id }&quot;
+                          Select Image &quot;{ resource.public_id }&quot;
                         </span>
                         <Checkbox
                           className={`w-6 h-6 rounded-full bg-white shadow ${isChecked ? 'border-blue-500' : 'border-zinc-200'}`}
-                          id={resource.id}
+                          id={resource.public_id}
                           onCheckedChange={handleOnSelectResource}
                           checked={isChecked}
                         />
@@ -130,11 +137,12 @@ const MediaGallery = ({ resources }: MediaGalleryProps) => {
                         className={`block cursor-pointer border-8 transition-[border] ${isChecked ? 'border-blue-500' : 'border-white'}`}
                         href="#"
                       >
-                        <img
-                          width="300"
-                          height="300"
-                          src="/icon-1024x1024.png"
-                          alt="Cloudinary Logo"
+                        <CldImage
+                          width={resource.width}
+                          height={resource.height}
+                          src={resource.public_id}
+                          alt=""
+                          sizes="(min-width: 768px) 33vw, (min-width: 1024px) 25vw, (min-width: 128pxpx) 20vw, 50vw"
                         />
                       </Link>
                     </div>
