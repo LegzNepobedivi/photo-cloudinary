@@ -169,10 +169,18 @@ const MediaViewer = ({ resource }: { resource: CloudinaryResource }) => {
       ...transformations,
     });
 
+    await fetch(url);
+
     const results = await fetch("/api/upload", {
       method: "POST",
-      body: JSON.stringify({ url }),
-    });
+      body: JSON.stringify({
+        publicId: resource.public_id,
+        url,
+      }),
+    }).then((response) => response.json());
+
+    console.log(results);
+    console.log(url);
   }
 
   // Listen for clicks outside of the panel area and if determined

@@ -7,9 +7,15 @@ cloudinary.config({
 });
 
 export async function POST(request: Request) {
-  const { url } = await request.json();
+  const { url, publicId } = await request.json();
 
-  const { results } = await cloudinary.uploader.upload(url);
+  const uploadOptions: Record<string, string> = {};
+
+  if (typeof publicId === "string") {
+    uploadOptions.public_id = publicId;
+  }
+
+  const { results } = await cloudinary.uploader.upload(url, uploadOptions);
 
   return Response.json({
     data: results,

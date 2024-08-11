@@ -4,13 +4,13 @@ import { CloudinaryResource } from "@/types/cloudinary";
 
 interface UseResources {
   initialResources?: Array<CloudinaryResource>;
-  disableFetch?:boolean;
-  tag?:string;
+  disableFetch?: boolean;
+  tag?: string;
 }
 
 export function useResources(options?: UseResources) {
   const queryClient = useQueryClient();
-  const {disableFetch = false} = options || {};
+  const { disableFetch = false } = options || {};
 
   const { data: resources } = useQuery({
     queryKey: ["resources", options?.tag],
@@ -21,17 +21,22 @@ export function useResources(options?: UseResources) {
       return data;
     },
     initialData: options?.initialResources,
-    enabled: !disableFetch
+    enabled: !disableFetch,
   });
 
   function addResource(results: Array<CloudinaryResource>) {
     queryClient.setQueryData(
-      ["resources",String(process.env.NEXT_PUBLIC_CLOUDINARY_TAG)],
+      ["resources", String(process.env.NEXT_PUBLIC_CLOUDINARY_LIBRARY_TAG)],
       (old: Array<CloudinaryResource>) => {
         return [...results, ...old];
       }
     );
-    queryClient.invalidateQueries({ queryKey: ["resources",String(process.env.NEXT_PUBLIC_CLOUDINARY_LIBRARY_TAG)] });
+    queryClient.invalidateQueries({
+      queryKey: [
+        "resources",
+        String(process.env.NEXT_PUBLIC_CLOUDINARY_LIBRARY_TAG),
+      ],
+    });
   }
 
   return {
