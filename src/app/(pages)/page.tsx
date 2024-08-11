@@ -1,5 +1,5 @@
-import { v2 as cloudinary } from "cloudinary";
 import MediaGallery from "@/components/MediaGallery";
+import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryResource } from "@/types/cloudinary";
 
 cloudinary.config({
@@ -9,16 +9,17 @@ cloudinary.config({
 });
 
 export default async function Home() {
-  let resources = [];
+  let resources : Array<CloudinaryResource> = [];
 
   try {
-    let result = await cloudinary.api.resources();
-    if (result && Array.isArray(result.resources)) {
+    let result = await cloudinary.api.resources_by_tag('media');
+    if (result.resources && Array.isArray(result.resources)) {
       resources = result.resources.map((resource: CloudinaryResource) => ({
         public_id: resource.public_id,
         width: resource.width,
         height: resource.height,
         secure_url: resource.secure_url,
+        asset_id: resource.asset_id,
       }));
     } else {
       console.error("Unexpected resource format:", result);
@@ -30,7 +31,7 @@ export default async function Home() {
   return (
     <div className="h-full mt-6">
       {resources.length > 0 ? (
-        <MediaGallery resources={resources} />
+        <MediaGallery resources={resources} tag={'media'}/>
       ) : (
         <p>No images to display</p>
       )}

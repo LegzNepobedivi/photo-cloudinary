@@ -1,21 +1,58 @@
-'use client';
+"use client";
+//1.16.53
 
-import {  useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { Blend, ChevronLeft, ChevronDown, Crop, Info, Pencil, Trash2, Wand2, Image, Ban } from 'lucide-react';
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import {
+  Blend,
+  ChevronLeft,
+  ChevronDown,
+  Crop,
+  Info,
+  Pencil,
+  Trash2,
+  Wand2,
+  Image,
+  Ban,
+  PencilRuler,
+  ScissorsSquare,
+} from "lucide-react";
 
-import Container from '@/components/Container';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import Container from "@/components/Container";
+import { Button, buttonVariants } from "@/components/ui/button";
+import CldImage from "@/components/CldImage";
+
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import { CloudinaryResource } from "@/types/cloudinary";
+import { CldImageProps, getCldImageUrl } from "next-cloudinary";
 
 interface Deletion {
   state: string;
 }
 
-const MediaViewer = ({ resource }: { resource: { id: string; width: number; height: number; } }) => {
+const MediaViewer = ({ resource }: { resource: CloudinaryResource }) => {
   const sheetFiltersRef = useRef<HTMLDivElement | null>(null);
   const sheetInfoRef = useRef<HTMLDivElement | null>(null);
 
@@ -24,6 +61,55 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
   const [filterSheetIsOpen, setFilterSheetIsOpen] = useState(false);
   const [infoSheetIsOpen, setInfoSheetIsOpen] = useState(false);
   const [deletion, setDeletion] = useState<Deletion>();
+
+  const [enhancement, setEnhancement] = useState<string>();
+  const [crop, setCrop] = useState<string>();
+  const [filter, setFilter] = useState<string>();
+
+  type Transformations = Omit<CldImageProps, "src" | "alt">;
+
+  const transformations: Transformations = {};
+
+  if (enhancement === "restore") {
+    transformations.restore = true;
+  } else if (enhancement === "improve") {
+    transformations.improve = true;
+  } else if (enhancement === "remove-background") {
+    transformations.removeBackground = true;
+  }
+
+  if (crop === "square") {
+    if (resource.width > resource.height) {
+      transformations.width = resource.height;
+      transformations.height = resource.height;
+    } else {
+      transformations.width = resource.width;
+      transformations.height = resource.width;
+    }
+    transformations.crop = {
+      source: true,
+      type: "fill",
+    };
+  } else if (crop === "landscape") {
+    transformations.height = Math.floor(resource.width / (16 / 9));
+    transformations.crop = {
+      source: true,
+      type: "fill",
+    };
+  } else if (crop === "portrait") {
+    transformations.width = resource.width;
+    transformations.height = resource.height;
+    transformations.crop = {
+      source: true,
+      type: "fill",
+    };
+  }
+
+  if (typeof filter === "string" && ["grayscale", "sepia"].includes(filter)) {
+    transformations[filter as keyof Transformations] = true;
+  } else if (typeof filter === "string" && ["sizzle"].includes(filter)) {
+    transformations.art = filter;
+  }
 
   // Canvas sizing based on the image dimensions. The tricky thing about
   // showing a single image in a space like this in a responsive way is trying
@@ -41,14 +127,14 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
 
   const imgStyles: Record<string, string | number> = {};
 
-  if ( isLandscape ) {
+  if (isLandscape) {
     imgStyles.maxWidth = resource.width;
-    imgStyles.width = '100%';
-    imgStyles.height = 'auto';
-  } else if ( isPortrait || isSquare ) {
+    imgStyles.width = "100%";
+    imgStyles.height = "auto";
+  } else if (isPortrait || isSquare) {
     imgStyles.maxHeight = resource.height;
-    imgStyles.height = '100vh';
-    imgStyles.width = 'auto'
+    imgStyles.height = "100vh";
+    imgStyles.width = "auto";
   }
 
   /**
@@ -57,9 +143,9 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
    */
 
   function closeMenus() {
-    setFilterSheetIsOpen(false)
-    setInfoSheetIsOpen(false)
-    setDeletion(undefined)
+    setFilterSheetIsOpen(false);
+    setInfoSheetIsOpen(false);
+    setDeletion(undefined);
   }
 
   /**
@@ -68,9 +154,25 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
 
   function handleOnDeletionOpenChange(isOpen: boolean) {
     // Reset deletion dialog if the user is closing it
-    if ( !isOpen ) {
+    if (!isOpen) {
       setDeletion(undefined);
     }
+  }
+
+  async function handleOnSave() {
+    const url = getCldImageUrl({
+      width: resource.width,
+      height: resource.height,
+      src: resource.public_id,
+      format: "default",
+      quality: "default",
+      ...transformations,
+    });
+
+    const results = await fetch("/api/upload", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
   }
 
   // Listen for clicks outside of the panel area and if determined
@@ -79,30 +181,39 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
   // multiple elements
 
   useEffect(() => {
-    document.body.addEventListener('click', handleOnOutsideClick)
+    document.body.addEventListener("click", handleOnOutsideClick);
     return () => {
-      document.body.removeEventListener('click', handleOnOutsideClick)
-    }
+      document.body.removeEventListener("click", handleOnOutsideClick);
+    };
   }, []);
 
   function handleOnOutsideClick(event: MouseEvent) {
-    const excludedElements = Array.from(document.querySelectorAll('[data-exclude-close-on-click="true"]'));
-    const clickedExcludedElement = excludedElements.filter(element => event.composedPath().includes(element)).length > 0;
+    const excludedElements = Array.from(
+      document.querySelectorAll('[data-exclude-close-on-click="true"]')
+    );
+    const clickedExcludedElement =
+      excludedElements.filter((element) =>
+        event.composedPath().includes(element)
+      ).length > 0;
 
-    if ( !clickedExcludedElement ) {
+    if (!clickedExcludedElement) {
       closeMenus();
     }
   }
 
   return (
     <div className="h-screen bg-black px-0">
-
       {/** Modal for deletion */}
 
-      <Dialog open={!!deletion?.state} onOpenChange={handleOnDeletionOpenChange}>
+      <Dialog
+        open={!!deletion?.state}
+        onOpenChange={handleOnDeletionOpenChange}
+      >
         <DialogContent data-exclude-close-on-click={true}>
           <DialogHeader>
-            <DialogTitle className="text-center">Are you sure you want to delete?</DialogTitle>
+            <DialogTitle className="text-center">
+              Are you sure you want to delete?
+            </DialogTitle>
           </DialogHeader>
           <DialogFooter className="justify-center sm:justify-center">
             <Button variant="destructive">
@@ -137,42 +248,215 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
             </TabsList>
             <TabsContent value="enhance">
               <SheetHeader className="my-4">
-                <SheetTitle className="text-zinc-400 text-sm font-semibold">Enhancements</SheetTitle>
+                <SheetTitle className="text-zinc-400 text-sm font-semibold">
+                  Enhancements
+                </SheetTitle>
               </SheetHeader>
               <ul className="grid gap-2">
                 <li>
-                  <Button variant="ghost" className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 border-white`}>
+                  <Button
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      enhancement === "undefined"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                    onClick={() => setEnhancement("undefined")}
+                  >
                     <Ban className="w-5 h-5 mr-3" />
                     <span className="text-[1.01rem]">None</span>
+                  </Button>
+                </li>
+                <li>
+                  <Button
+                    onClick={() => setEnhancement("improve")}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      enhancement === "improve"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <Wand2 className="w-5 h-5 mr-3" />
+                    <span className="text-[1.01rem]">Improve</span>
+                  </Button>
+                </li>
+                <li>
+                  <Button
+                    onClick={() => setEnhancement("restore")}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      enhancement === "restore"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <PencilRuler className="w-5 h-5 mr-3" />
+                    <span className="text-[1.01rem]">Restore</span>
+                  </Button>
+                </li>
+                <li>
+                  <Button
+                    onClick={() => setEnhancement("remove-background")}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      enhancement === "remove-background"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <ScissorsSquare className="w-5 h-5 mr-3" />
+                    <span className="text-[1.01rem]">Remove Background</span>
                   </Button>
                 </li>
               </ul>
             </TabsContent>
             <TabsContent value="crop">
               <SheetHeader className="my-4">
-                <SheetTitle className="text-zinc-400 text-sm font-semibold">Cropping & Resizing</SheetTitle>
+                <SheetTitle className="text-zinc-400 text-sm font-semibold">
+                  Cropping & Resizing
+                </SheetTitle>
               </SheetHeader>
               <ul className="grid gap-2">
                 <li>
-                  <Button variant="ghost" className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 border-white`}>
+                  <Button
+                    onClick={() => {
+                      setCrop(undefined);
+                    }}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      !crop ? "border-white" : "border-transparent"
+                    }`}
+                  >
                     <Image className="w-5 h-5 mr-3" />
                     <span className="text-[1.01rem]">Original</span>
+                  </Button>
+                </li>
+                <li>
+                  <Button
+                    onClick={() => {
+                      setCrop("square");
+                    }}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      crop === "square" ? "border-white" : "border-transparent"
+                    }`}
+                  >
+                    <Image className="w-5 h-5 mr-3" />
+                    <span className="text-[1.01rem]">Square</span>
+                  </Button>
+                </li>
+                <li>
+                  <Button
+                    onClick={() => {
+                      setCrop("landscape");
+                    }}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      crop === "landscape"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <Image className="w-5 h-5 mr-3" />
+                    <span className="text-[1.01rem]">Landscape</span>
+                  </Button>
+                </li>
+                <li>
+                  <Button
+                    onClick={() => {
+                      setCrop("portrait");
+                    }}
+                    variant="ghost"
+                    className={`text-left justify-start w-full h-14 border-4 bg-zinc-700 ${
+                      crop === "portrait"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <Image className="w-5 h-5 mr-3" />
+                    <span className="text-[1.01rem]">Portrait</span>
                   </Button>
                 </li>
               </ul>
             </TabsContent>
             <TabsContent value="filters">
               <SheetHeader className="my-4">
-                <SheetTitle className="text-zinc-400 text-sm font-semibold">Filters</SheetTitle>
+                <SheetTitle className="text-zinc-400 text-sm font-semibold">
+                  Filters
+                </SheetTitle>
               </SheetHeader>
               <ul className="grid grid-cols-2 gap-2">
                 <li>
-                  <button className={`w-full border-4 border-white`}>
-                    <img
-                      width={resource.width}
-                      height={resource.height}
-                      src="/icon-1024x1024.png"
+                  <button
+                    onClick={() => setFilter(undefined)}
+                    className={`w-full border-4 border-white ${
+                      filter == undefined
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <CldImage
+                      width={156}
+                      height={156}
+                      crop="fill"
+                      src={resource.public_id}
                       alt="No Filter"
+                    />
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setFilter("sepia")}
+                    className={`w-full border-4 border-white ${
+                      filter === "sepia" ? "border-white" : "border-transparent"
+                    }`}
+                  >
+                    <CldImage
+                      width={156}
+                      height={156}
+                      crop="fill"
+                      src={resource.public_id}
+                      sepia
+                      alt="Sepia Filter"
+                    />
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setFilter("sizzle")}
+                    className={`w-full border-4 border-white ${
+                      filter === "sizzle"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <CldImage
+                      width={156}
+                      height={156}
+                      crop="fill"
+                      art="sizzle"
+                      src={resource.public_id}
+                      alt="Sizzle Filter"
+                    />
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setFilter("grayscale")}
+                    className={`w-full border-4 border-white ${
+                      filter === "grayscale"
+                        ? "border-white"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <CldImage
+                      width={156}
+                      height={156}
+                      crop="fill"
+                      grayscale
+                      src={resource.public_id}
+                      alt="Grayscale Filter"
                     />
                   </button>
                 </li>
@@ -184,10 +468,9 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
               <Button
                 variant="ghost"
                 className="w-full h-14 text-left justify-center items-center bg-blue-500"
+                onClick={handleOnSave}
               >
-                <span className="text-[1.01rem]">
-                  Save
-                </span>
+                <span className="text-[1.01rem]">Save</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -199,7 +482,10 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
                     <ChevronDown className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" data-exclude-close-on-click={true}>
+                <DropdownMenuContent
+                  className="w-56"
+                  data-exclude-close-on-click={true}
+                >
                   <DropdownMenuGroup>
                     <DropdownMenuItem>
                       <span>Save as Copy</span>
@@ -213,9 +499,7 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
               className="w-full h-14 text-left justify-center items-center bg-transparent border-zinc-600"
               onClick={() => closeMenus()}
             >
-              <span className="text-[1.01rem]">
-                Close
-              </span>
+              <span className="text-[1.01rem]">Close</span>
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -230,14 +514,18 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
           data-exclude-close-on-click={true}
         >
           <SheetHeader className="my-4">
-            <SheetTitle className="text-zinc-200 font-semibold">Info</SheetTitle>
+            <SheetTitle className="text-zinc-200 font-semibold">
+              Info
+            </SheetTitle>
           </SheetHeader>
           <div>
             <ul>
               <li className="mb-3">
-                <strong className="block text-xs font-normal text-zinc-400 mb-1">ID</strong>
+                <strong className="block text-xs font-normal text-zinc-400 mb-1">
+                  ID
+                </strong>
                 <span className="flex gap-4 items-center text-zinc-100">
-                  { resource.id }
+                  {resource.public_id}
                 </span>
               </li>
             </ul>
@@ -260,7 +548,10 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
         <div className="flex items-center gap-4">
           <ul>
             <li>
-              <Link href="/" className={`${buttonVariants({ variant: "ghost" })} text-white`}>
+              <Link
+                href="/"
+                className={`${buttonVariants({ variant: "ghost" })} text-white`}
+              >
                 <ChevronLeft className="h-6 w-6" />
                 Back
               </Link>
@@ -269,19 +560,31 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
         </div>
         <ul className="flex items-center gap-4">
           <li>
-            <Button variant="ghost" className="text-white" onClick={() => setFilterSheetIsOpen(true)}>
+            <Button
+              variant="ghost"
+              className="text-white"
+              onClick={() => setFilterSheetIsOpen(true)}
+            >
               <Pencil className="h-6 w-6" />
               <span className="sr-only">Edit</span>
             </Button>
           </li>
           <li>
-            <Button variant="ghost" className="text-white" onClick={() => setInfoSheetIsOpen(true)}>
+            <Button
+              variant="ghost"
+              className="text-white"
+              onClick={() => setInfoSheetIsOpen(true)}
+            >
               <Info className="h-6 w-6" />
               <span className="sr-only">Info</span>
             </Button>
           </li>
           <li>
-            <Button variant="ghost" className="text-white" onClick={() => setDeletion({ state: 'confirm' })}>
+            <Button
+              variant="ghost"
+              className="text-white"
+              onClick={() => setDeletion({ state: "confirm" })}
+            >
               <Trash2 className="h-6 w-6" />
               <span className="sr-only">Delete</span>
             </Button>
@@ -292,17 +595,20 @@ const MediaViewer = ({ resource }: { resource: { id: string; width: number; heig
       {/** Asset viewer */}
 
       <div className="relative flex justify-center items-center align-center w-full h-full">
-        <img
+        <CldImage
+          key={JSON.stringify(transformations)}
           className="object-contain"
           width={resource.width}
           height={resource.height}
-          src="/icon-1024x1024.png"
-          alt="Cloudinary Logo"
+          src={resource.public_id}
+          alt={`Image ${resource.public_id}`}
           style={imgStyles}
+          placeholder="blur"
+          {...transformations}
         />
       </div>
     </div>
-  )
+  );
 };
 
 export default MediaViewer;

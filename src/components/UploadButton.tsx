@@ -11,7 +11,9 @@ import { useResources } from "@/hooks/use-resources";
 import { CloudinaryResource } from "@/types/cloudinary";
 
 const UploadButton = () => {
-  const { addResource } = useResources({ initialResources: [] });
+  const { addResource } = useResources({
+    disableFetch: true
+  });
 
   function handleOnSuccess(results: CloudinaryUploadWidgetResults) {
     addResource([results.info as CloudinaryResource]);
@@ -21,7 +23,7 @@ const UploadButton = () => {
     <CldUploadButton
       options={{
         autoMinimize: true,
-        tags: ["media"],
+        tags: [String(process.env.NEXT_PUBLIC_CLOUDINARY_LIBRARY_TAG)],
       }}
       signatureEndpoint="/api/sign-cloudinary"
       onSuccess={handleOnSuccess}

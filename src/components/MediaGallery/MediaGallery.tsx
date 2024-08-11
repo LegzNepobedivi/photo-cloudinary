@@ -17,13 +17,15 @@ import { CloudinaryResource } from '@/types/cloudinary';
 import { useResources } from '@/hooks/use-resources';
 
 interface MediaGalleryProps {
-  resources: Array<CloudinaryResource>
+  resources: Array<CloudinaryResource>;
+  tag: string;
 }
 
-const MediaGallery = ({ resources: initialResources }: MediaGalleryProps) => {
+const MediaGallery = ({ resources: initialResources, tag }: MediaGalleryProps) => {
 
   const {resources} = useResources({
-    initialResources
+    initialResources,
+    tag: 'media'
   });
 
   const [selected, setSelected] = useState<Array<string>>([]);
@@ -135,7 +137,7 @@ const MediaGallery = ({ resources: initialResources }: MediaGalleryProps) => {
                       </label>
                       <Link
                         className={`block cursor-pointer border-8 transition-[border] ${isChecked ? 'border-blue-500' : 'border-white'}`}
-                        href="#"
+                        href={`/resources/${resource.asset_id}`}
                       >
                         <CldImage
                           width={resource.width}
